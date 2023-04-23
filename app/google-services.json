@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "711598424424",
+    "firebase_url": "https://antigraffiti-ab5ea-default-rtdb.firebaseio.com",
+    "project_id": "antigraffiti-ab5ea",
+    "storage_bucket": "antigraffiti-ab5ea.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:711598424424:android:ce05adb39c43f65a9b16dd",
+        "android_client_info": {
+          "package_name": "com.example.antigraffiti"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "711598424424-dv5i94p0vbsc5i57il48nl0vh3i7amv9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3b2dibYynC1i8TeFf5qH0IyEmSwfLNzQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "711598424424-dv5i94p0vbsc5i57il48nl0vh3i7amv9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
