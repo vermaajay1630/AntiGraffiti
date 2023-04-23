@@ -116,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         adapter.stopListening();
+        adapter.notifyDataSetChanged();
     }
 
 

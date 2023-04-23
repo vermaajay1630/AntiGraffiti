@@ -17,7 +17,12 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Adapter;
@@ -98,10 +103,31 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
             startActivity(main);
         });
 
+        
         upload.setOnClickListener(new View.OnClickListener() {
             @Override
+            
             public void onClick(View v) {
-                uploadtoFirebase();
+                if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q){
+                ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                if (activeNetwork != null && activeNetwork.isConnectedOrConnecting()) {
+                    uploadtoFirebase();
+                } else {
+                    Toast.makeText(getApplicationContext(), "Please! enable Internet to report the Graffiti", LENGTH_SHORT).show();
+                }
+                }
+                else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
+                    ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                    NetworkCapabilities capabilities = cm.getNetworkCapabilities(cm.getActiveNetwork());
+                    if (capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)){
+                        uploadtoFirebase();
+                    } else {
+                        Toast.makeText(getApplicationContext(), "Please! enable Internet to report the Graffiti", LENGTH_SHORT).show();
+                    }
+                }
+
+
             }
         });
 
@@ -213,6 +239,36 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
     }
 
 
+//    private void getAddress() {
+//        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+//        Location location = null;
+//        if (locationManager != null) {
+//            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                return;
+//            }
+//            location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+//        }
+//        if (location != null) {
+//            double latitude = location.getLatitude();
+//            double longitude = location.getLongitude();
+//            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+//            List<Address> addresses = null;
+//            try {
+//                addresses = geocoder.getFromLocation(latitude, longitude, 1);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//            if (addresses != null && addresses.size() > 0) {
+//                Address address = addresses.get(0);
+//                String locality = address.getLocality();
+//                String country = address.getCountryName();
+//                String fullAddress = address.getAddressLine(0);
+//                currentLoc.setText(fullAddress);
+//                add = fullAddress;
+//            }
+//        }
+//    }
+
     private void getAddress() {
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         Location location = null;
@@ -225,7 +281,17 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
         if (location != null) {
             double latitude = location.getLatitude();
             double longitude = location.getLongitude();
-            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
+            new GetAddressTask().execute(latitude, longitude);
+        }
+    }
+
+    private class GetAddressTask extends AsyncTask<Double, Void, String> {
+
+        @Override
+        protected String doInBackground(Double... params) {
+            double latitude = params[0];
+            double longitude = params[1];
+            Geocoder geocoder = new Geocoder(UploadImage.this, Locale.getDefault());
             List<Address> addresses = null;
             try {
                 addresses = geocoder.getFromLocation(latitude, longitude, 1);
@@ -234,11 +300,17 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
             }
             if (addresses != null && addresses.size() > 0) {
                 Address address = addresses.get(0);
-                String locality = address.getLocality();
-                String country = address.getCountryName();
                 String fullAddress = address.getAddressLine(0);
-                currentLoc.setText(fullAddress);
-                add = fullAddress;
+                return fullAddress;
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            if (result != null) {
+                currentLoc.setText(result);
+                add = result;
             }
         }
     }
