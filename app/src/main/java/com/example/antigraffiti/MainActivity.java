@@ -46,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
     Button cam;
     String currentPhotoPath;
     private File imageFile;
-    private FirebaseAuth mAuth;
     myAdapter adapter;
     RecyclerView recyclerView;
     private FirebaseUiException firebaseUiException;
@@ -162,15 +161,12 @@ public class MainActivity extends AppCompatActivity {
 
                     builder.setMessage("You have denied or More permission. Please go to [Settings] > [Permissions] and allow all")
                             .setTitle("Permissions Denied");
-                    builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                    Uri.fromParts("package", getPackageName(), null));
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(intent);
-                            finish();
-                        }
+                    builder.setPositiveButton("Ok", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", getPackageName(), null));
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                        finish();
                     }).setNegativeButton("No, Exit App", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {

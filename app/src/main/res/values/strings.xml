@@ -1,4 +1,17 @@
 <resources>
     <string name="app_name">AntiGraffiti</string>
     <string name="cancel">Cancel</string>
+    <string name="please_select_the_appropriate_dropdown">Please select the appropriate dropdown:</string>
+    <string name="can_you_describe_the_graffiti">Can you Describe the Graffiti?</string>
+    <string name="upload">Upload</string>
+    <string name="sign_up">SIGN UP</string>
+    <string name="enter_your_email_here">Enter your email here</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="already_user_sign_in">Already User? Sign In</string>
+    <string name="signUp">Sign UP</string>
+    <string name="sign_in">Sign In</string>
+    <string name="new_user_sign_up">New User? Sign Up</string>
+    <string name="forgot_password">Forgot Password?</string>
 </resources>

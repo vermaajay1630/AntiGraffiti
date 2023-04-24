@@ -8,6 +8,7 @@ import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -32,6 +33,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -42,8 +44,10 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
@@ -51,6 +55,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -59,7 +64,7 @@ import java.util.UUID;
 
 public class UploadImage extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
-    String[] graffitiTypes = {"RACIST","SLANG","InAppropriate","Religious"};
+    String[] graffitiTypes = {"Good","Racist","Slang","In-appropriate","Religious"};
     Context context;
     String add, downUrl,gType, imageId;
     Location location;
@@ -73,6 +78,7 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
     FirebaseDatabase firebaseDatabase;
     DatabaseReference databaseReference;
     StorageReference storageReference;
+    private ProgressBar loadingPB;
 
 
     @SuppressLint("MissingInflatedId")
@@ -104,31 +110,27 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
         });
 
         
-        upload.setOnClickListener(new View.OnClickListener() {
-            @Override
-            
-            public void onClick(View v) {
-                if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q){
+        upload.setOnClickListener(v -> {
+            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q){
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+            if (activeNetwork != null && activeNetwork.isConnectedOrConnecting()) {
+                uploadtoFirebase();
+            } else {
+                Toast.makeText(getApplicationContext(), "Please! enable Internet to report the Graffiti", LENGTH_SHORT).show();
+            }
+            }
+            else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-                if (activeNetwork != null && activeNetwork.isConnectedOrConnecting()) {
+                NetworkCapabilities capabilities = cm.getNetworkCapabilities(cm.getActiveNetwork());
+                if (capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)){
                     uploadtoFirebase();
                 } else {
                     Toast.makeText(getApplicationContext(), "Please! enable Internet to report the Graffiti", LENGTH_SHORT).show();
                 }
-                }
-                else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
-                    ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-                    NetworkCapabilities capabilities = cm.getNetworkCapabilities(cm.getActiveNetwork());
-                    if (capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)){
-                        uploadtoFirebase();
-                    } else {
-                        Toast.makeText(getApplicationContext(), "Please! enable Internet to report the Graffiti", LENGTH_SHORT).show();
-                    }
-                }
-
-
             }
+
+
         });
 
     }
@@ -136,24 +138,6 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
 
     //uploading image to firebase storage and storing description, image url, address in Realtime database.
 
-//    private void UploadToStorage() {
-//        databaseReference =FirebaseDatabase.getInstance().getReference("image");
-//        SimpleDateFormat dateFormat =new SimpleDateFormat("YYYY_MM_DD_HH_MM_SS", Locale.getDefault());
-//        Date now =new Date();
-//        String filename =dateFormat.format(now);
-//        storageReference.putFile(uri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-//            @Override
-//            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-//                storageReference.getDownloadUrl().addOnSuccessListener(uri -> {
-//                    String donwloadUrl =uri.toString();
-//                    downUrl =   donwloadUrl;
-//                    addToDatabase(donwloadUrl);
-//                });
-//            }
-//        });
-//
-//
-//    }
 
     private void uploadtoFirebase() {
         imageData = new imageData();
@@ -162,55 +146,65 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
         Date now =  new Date();
         String filename =dateFormat.format(now);
         storageReference = FirebaseStorage.getInstance().getReference("images/"+filename);
-        storageReference.putFile(uri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Uploading");
+        progressDialog.show();
+
+        storageReference.putFile(uri).addOnSuccessListener(taskSnapshot -> storageReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
             @Override
-            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                storageReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                    @Override
-                    public void onSuccess(Uri uri) {
-                        String downloadUrl =  uri.toString();
-                        addToDatabase(String.valueOf(uri));
-                    }
-                });
+            public void onSuccess(Uri uri) {
+                String downloadUrl =  uri.toString();
+                addToDatabase(String.valueOf(uri));
+                progressDialog.dismiss();
             }
+        })).addOnProgressListener(taskSnapshot -> {
+            double progress = (100.0 * taskSnapshot.getBytesTransferred() / taskSnapshot.getTotalByteCount());
+            progressDialog.setMessage("Uploaded " + (int) progress + "%");
         });
-
     }
-
     private void addToDatabase(String uri) {
         imageId = String.valueOf(UUID.randomUUID());
         String desc = description.getText().toString().trim();
-       databaseReference  =  FirebaseDatabase.getInstance().getReference("graffitiDetails");
-        SimpleDateFormat dateFormat =new SimpleDateFormat("YYYY_MM_DD_HH_MM_SS", Locale.getDefault());
-        Date now =new Date();
-        String filename =dateFormat.format(now);
-        imageData.setImageUrl(uri);
-        imageData.setAddress(add);
-        imageData.setDescription(desc);
-        imageData.setCategory(gType);
-        imageData.setId(imageId);
+        databaseReference = FirebaseDatabase.getInstance().getReference("graffitiDetails");
 
-        databaseReference.addValueEventListener(new ValueEventListener() {
+        // Check if the address already exists in the database
+        Query query = databaseReference.orderByChild("address").equalTo(add);
+        query.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                databaseReference.child(imageId).setValue(imageData);
-                Toast.makeText(getApplicationContext(), "Graffiti Added Successfully", LENGTH_SHORT).show();
-                Intent mainAct = new Intent(getApplicationContext(), MainActivity.class);
-                startActivity(mainAct);
+                if (snapshot.exists()) {
+                    // The address already exists in the database
+                    Toast.makeText(getApplicationContext(), "We Appreciate your Effort! However, this has been already reported. Thanks!", LENGTH_SHORT).show();
+                } else {
+                    // The address does not exist in the database, so add the data
+                    SimpleDateFormat dateFormat =new SimpleDateFormat("YYYY_MM_DD_HH_MM_SS", Locale.getDefault());
+                    Date now =new Date();
+                    String filename =dateFormat.format(now);
+                    imageData.setImageUrl(uri);
+                    imageData.setAddress(add);
+                    imageData.setDescription(desc);
+                    imageData.setCategory(gType);
+                    imageData.setId(imageId);
+
+                    databaseReference.child(imageId).setValue(imageData);
+                    Toast.makeText(getApplicationContext(), "Thank you for reporting this.", LENGTH_SHORT).show();
+                    Intent mainAct = new Intent(getApplicationContext(), MainActivity.class);
+                    startActivity(mainAct);
+                }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
+                // Handle the error here
             }
         });
-
-
     }
 
 
     //Displaying capture image using the camera
 
+    @SuppressLint("NewApi")
     private void displayCapturedImage() {
         Intent intent = getIntent();
         String filePath = intent.getStringExtra("capturedImageFilePath");
@@ -222,7 +216,7 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
                 OutputStream outStream = null;
                 File f = new File(filePath);
                 try {
-                    outStream = new FileOutputStream(f);
+                    outStream = Files.newOutputStream(f.toPath());
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 85, outStream);
                     outStream.flush();
                     outStream.close();
@@ -238,36 +232,6 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
         }
     }
 
-
-//    private void getAddress() {
-//        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-//        Location location = null;
-//        if (locationManager != null) {
-//            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//                return;
-//            }
-//            location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-//        }
-//        if (location != null) {
-//            double latitude = location.getLatitude();
-//            double longitude = location.getLongitude();
-//            Geocoder geocoder = new Geocoder(this, Locale.getDefault());
-//            List<Address> addresses = null;
-//            try {
-//                addresses = geocoder.getFromLocation(latitude, longitude, 1);
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//            if (addresses != null && addresses.size() > 0) {
-//                Address address = addresses.get(0);
-//                String locality = address.getLocality();
-//                String country = address.getCountryName();
-//                String fullAddress = address.getAddressLine(0);
-//                currentLoc.setText(fullAddress);
-//                add = fullAddress;
-//            }
-//        }
-//    }
 
     private void getAddress() {
         LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -285,6 +249,7 @@ public class UploadImage extends AppCompatActivity implements AdapterView.OnItem
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     private class GetAddressTask extends AsyncTask<Double, Void, String> {
 
         @Override
